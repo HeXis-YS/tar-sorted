@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import sys, os, stat, hashlib
 
-def read_md5(path):
-    h = hashlib.md5()
+def read_hash(path):
+    h = hashlib.blake2b()
     with open(path, "rb") as f:
         while True:
             b = f.read(1048576)
@@ -62,29 +62,29 @@ class Tree:
             if is_reg:
                 by_size.setdefault(size, []).append((dirname, basename, ext, size, is_reg, path))
 
-        by_md5 = {}
-        records = []  # (dirname, basename, ext, md5_key, path)
+        by_hash = {}
+        records = []  # (dirname, basename, ext, hash_key, path)
 
         for dirname, basename, ext, size, is_reg, path in self.entries:
             if not is_reg:
-                md5_key = None
+                hash_key = None
             else:
                 group = by_size.get(size, [])
                 if len(group) <= 1:
                     # Unique size: skip hashing; give a unique key per file
-                    md5_key = ("solo", path)
+                    hash_key = ("solo", path)
                 else:
-                    # Same-size candidates: compute md5
-                    md5_key = read_md5(path)
-            by_md5.setdefault(md5_key, []).append(path)
-            records.append((dirname, basename, ext, md5_key, path))
+                    # Same-size candidates: compute hash
+                    hash_key = read_hash(path)
+            by_hash.setdefault(hash_key, []).append(path)
+            records.append((dirname, basename, ext, hash_key, path))
 
-        # Sort by ext/basename/dirname, then emit all paths for each new md5_key
+        # Sort by ext/basename/dirname, then emit all paths for each new hash_key
         seen = set()
-        for _, _, _, md5_key, _ in sorted(records, key=sort_key):
-            if md5_key not in seen:
-                seen.add(md5_key)
-                for p in sorted(by_md5[md5_key]):
+        for _, _, _, hash_key, _ in sorted(records, key=sort_key):
+            if hash_key not in seen:
+                seen.add(hash_key)
+                for p in sorted(by_hash[hash_key]):
                     self.emit(p)
 
     def close(self):
